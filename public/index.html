@@ -2,84 +2,100 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lonchera Saludable</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ideas de Lonchera Saludable</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="header">
-    <h1 class="title">Lonchera Saludable</h1>
-    <div class="country-select">
+<body class="peru-theme">
+  <header>
+    <h1>Ideas de Lonchera Saludable</h1>
+    <div class="country-switch">
       <label for="country">País:</label>
       <select id="country">
-        <option value="peru">🇵🇪 Perú</option>
-        <option value="chile">🇨🇱 Chile</option>
+        <option value="Peru" selected>Perú</option>
+        <option value="Chile">Chile</option>
       </select>
     </div>
   </header>
 
-  <main class="container">
-    <!-- Formulario -->
-    <section id="form-section" class="card">
-      <h2>Datos del estudiante</h2>
-      <form id="studentForm">
-        <label for="name">Nombre:</label>
-        <input type="text" id="name" required />
-
-        <label for="age">Edad:</label>
-        <input type="number" id="age" min="6" max="18" required />
-
-        <label for="grade">Grado escolar:</label>
-        <select id="grade" required>
-          <optgroup label="Primaria">
-            <option value="1ro de primaria">1ro de primaria</option>
-            <option value="2do de primaria">2do de primaria</option>
-            <option value="3ro de primaria">3ro de primaria</option>
-            <option value="4to de primaria">4to de primaria</option>
-            <option value="5to de primaria">5to de primaria</option>
-            <option value="6to de primaria">6to de primaria</option>
-          </optgroup>
-          <optgroup label="Secundaria">
-            <option value="1ro de secundaria">1ro de secundaria</option>
-            <option value="2do de secundaria">2do de secundaria</option>
-            <option value="3ro de secundaria">3ro de secundaria</option>
-            <option value="4to de secundaria">4to de secundaria</option>
-            <option value="5to de secundaria">5to de secundaria</option>
-          </optgroup>
-        </select>
-
-        <label>Género:</label>
-        <div class="gender-toggle">
-          <input type="radio" id="male" name="sex" value="Masculino" required />
-          <label for="male">Masculino</label>
-          <input type="radio" id="female" name="sex" value="Femenino" />
-          <label for="female">Femenino</label>
+  <main>
+    <section class="form-section">
+      <form id="lunchForm">
+        <div class="form-group">
+          <label for="name">Nombre del estudiante</label>
+          <input type="text" id="name" name="name" required />
         </div>
 
-        <label for="weight">Peso (kg):</label>
-        <input type="number" id="weight" step="0.1" required />
+        <div class="form-group">
+          <label for="age">Edad</label>
+          <input type="number" id="age" name="age" min="6" max="17" required />
+        </div>
 
-        <label for="height">Talla (cm):</label>
-        <input type="number" id="height" required />
+        <div class="form-group">
+          <label>Género</label>
+          <div class="radio-group">
+            <input type="radio" id="male" name="sex" value="Masculino" required />
+            <label for="male" class="radio-label">Masculino</label>
 
-        <label for="activity">Nivel de actividad:</label>
-        <select id="activity" required>
-          <option value="Bajo">Bajo</option>
-          <option value="Moderado">Moderado</option>
-          <option value="Alto">Alto</option>
-        </select>
+            <input type="radio" id="female" name="sex" value="Femenino" required />
+            <label for="female" class="radio-label">Femenino</label>
+          </div>
+        </div>
 
-        <label for="allergies">Alergias, restricciones o preferencias:</label>
-        <textarea id="allergies" rows="2" placeholder="Ej: Vegetariano, alergia al maní, no me gusta la cebolla"></textarea>
 
-        <button type="submit" id="generateBtn" class="btn-primary">Generar ideas</button>
+        <div class="form-group">
+          <label for="weight">Peso (kg)</label>
+          <input type="number" id="weight" name="weight" step="0.1" required />
+        </div>
+
+        <div class="form-group">
+          <label for="height">Estatura (cm)</label>
+          <input type="number" id="height" name="height" required />
+        </div>
+
+        <div class="form-group">
+          <label for="activity">Nivel de actividad física</label>
+          <select id="activity" name="activity" required>
+            <option value="Bajo">Bajo</option>
+            <option value="Moderado">Moderado</option>
+            <option value="Alto">Alto</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="allergies">Alergias, preferencias o restricciones</label>
+          <input
+            type="text"
+            id="allergies"
+            name="allergies"
+            placeholder="Ejemplo: alérgico a la leche, vegetariano, no le gusta el pescado"
+          />
+        </div>
+
+        <button type="submit" id="generateBtn" class="btn-primary">
+          Generar ideas
+        </button>
       </form>
     </section>
 
-    <!-- Resultados -->
-    <section id="results" class="hidden">
-      <div id="imc-card" class="card highlight"></div>
-      <div id="lunches" class="grid"></div>
+    <section class="results-section hidden" id="resultsSection">
+      <div class="imc-header">
+        <h2>IMC del estudiante</h2>
+        <div class="imc-info">
+          <span id="imcValue"></span>
+          <div class="tooltip">
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-text">
+              El IMC (Índice de Masa Corporal) relaciona el peso y la talla.
+              En niños ayuda a identificar si su crecimiento es adecuado,
+              si tienen bajo peso o riesgo de sobrepeso.
+            </span>
+          </div>
+        </div>
+        <p id="imcExplanation"></p>
+      </div>
+
+      <div id="ideasContainer" class="ideas-container"></div>
     </section>
   </main>
 

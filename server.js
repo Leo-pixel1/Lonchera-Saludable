@@ -1,155 +1,169 @@
 /**
- * server.js — Servidor Node/Express que actúa como proxy hacia Gemini
- * y calcula IMC + grado escolar.
+ * server.js — Backend con Express y Gemini
+ *
+ * Para correr:
+ *   npm install express node-fetch dotenv
+ *   node server.js
  */
 
-require('dotenv').config();
-const express = require('express');
+require("dotenv").config();
+const express = require("express");
 const fetch = (...args) =>
-  import('node-fetch').then(({ default: f }) => f(...args));
-const path = require('path');
+  import("node-fetch").then(({ default: f }) => f(...args));
+const path = require("path");
+
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const API_KEY = process.env.GEMINI_API_KEY;
 
-if (!API_KEY) console.warn('⚠️ GEMINI_API_KEY no configurada en .env');
+if (!API_KEY) {
+  console.error("❌ Error: GEMINI_API_KEY no está configurada en tu .env");
+  process.exit(1);
+}
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public"))); // sirve index.html, style.css, app.js
 
-// === Función para calcular IMC ===
+// Función para calcular IMC
 function calcularIMC(peso, tallaCm) {
   const tallaM = tallaCm / 100;
-  const imc = (peso / (tallaM * tallaM)).toFixed(2);
-  let interpretacion = '';
+  const imc = +(peso / (tallaM * tallaM)).toFixed(2);
 
-  if (imc < 18.5) {
-    interpretacion =
-      'Bajo peso: el alumno podría necesitar más calorías y nutrientes.';
-  } else if (imc >= 18.5 && imc < 24.9) {
-    interpretacion = 'Normal: el IMC es adecuado para su edad y talla.';
-  } else if (imc >= 25 && imc < 29.9) {
-    interpretacion = 'Sobrepeso: se recomienda moderar azúcares y grasas.';
-  } else {
-    interpretacion =
-      'Obesidad: se debe promover una alimentación saludable y actividad física.';
-  }
+  let categoria = "";
+  if (imc < 14) categoria = "Bajo peso";
+  else if (imc >= 14 && imc < 19) categoria = "Normal";
+  else if (imc >= 19 && imc < 23) categoria = "Sobrepeso";
+  else categoria = "Obesidad";
 
-  return { imc, interpretacion };
+  const explicacion =
+    "El IMC es una medida que relaciona peso y estatura. En niños y adolescentes se interpreta considerando la edad y el crecimiento. Ayuda a detectar si el estudiante está en un rango saludable.";
+
+  return { valor: imc, categoria, explicacion };
 }
 
-// === Función para determinar grado escolar ===
-function determinarGrado(edad) {
-  if (edad >= 6 && edad <= 11) {
-    return `Primaria, ${edad - 5}° grado`;
-  } else if (edad >= 12 && edad <= 16) {
-    return `Secundaria, ${edad - 11}° grado`;
-  } else if (edad === 17) {
-    return `Secundaria, 5° grado`;
-  } else if (edad === 18) {
-    return `Último año de secundaria o egresado reciente`;
-  } else {
-    return `Fuera del rango escolar (6-18 años)`;
-  }
-}
-
-// === Endpoint principal ===
-app.post('/api/generate-lunches', async (req, res) => {
+// Endpoint para generar loncheras
+app.post("/api/generate-lunches", async (req, res) => {
   try {
-    const { student } = req.body;
-    if (!student)
-      return res.status(400).json({ error: 'Falta objeto student en el body' });
-
-    // Calcular IMC y grado
-    const imcData = calcularIMC(student.weight, student.height);
-    const grado = determinarGrado(student.age);
-
-    const prompt = `
-Eres un nutricionista infantil experto en ${
-      student.country === 'peru' ? 'Perú' : 'Chile'
-    }.
-
-Genera exactamente 3 propuestas de lonchera escolar saludables y variadas (sin repetir nombres),
-con ingredientes comunes de ${student.country === 'peru' ? 'Perú' : 'Chile'},
-adecuadas para escolares según edad, grado y nivel de actividad.
-
-Datos del alumno:
-- Nombre: ${student.name}
-- Edad: ${student.age} años
-- Grado escolar: ${grado}
-- Sexo: ${student.sex}
-- Peso: ${student.weight} kg
-- Talla: ${student.height} cm
-- Nivel de actividad: ${student.activity}
-- Alergias, restricciones o preferencias: ${
-      student.allergies || 'Ninguna'
+    const { student, country } = req.body;
+    if (!student || !country) {
+      return res
+        .status(400)
+        .json({ error: "Faltan datos del estudiante o país." });
     }
 
-Responde estrictamente en JSON válido con esta estructura:
+    const { name, age, sex, weight, height, activity, allergies } = student;
 
-[
-  {
-    "nombre": "Nombre creativo y variado de la lonchera",
-    "ingredientes": ["Ingrediente 1 con cantidad", "Ingrediente 2 con cantidad", "..."],
-    "explicacion": "Explicación breve de por qué es adecuada para su edad, grado y nivel de actividad",
-    "alternativas": "Opciones según alergias, restricciones o preferencias, o 'Ninguna'"
+    // Calculamos el IMC en el backend
+    const imcData = calcularIMC(weight, height);
+
+    // Prompt detallado
+    const prompt = `
+Eres un nutricionista especializado en alimentación escolar en ${country}.
+Debes generar ideas de loncheras saludables y realistas, considerando ingredientes comunes de ${country}
+que sean fáciles de conseguir (ejemplo: papa, choclo, pan, frutas locales, etc.).
+
+Datos del estudiante:
+- Nombre: ${name}
+- Edad: ${age} años
+- Género: ${sex}
+- Peso: ${weight} kg
+- Estatura: ${height} cm
+- Actividad física: ${activity}
+- Alergias / preferencias: ${allergies || "Ninguna"}
+
+1. Calcula el IMC y confirma si es bajo, normal, sobrepeso u obesidad.
+2. Explica brevemente qué significa ese IMC para su edad.
+3. Genera exactamente 5 propuestas de loncheras, variadas y no repetitivas.
+   - Cada lonchera debe incluir obligatoriamente una bebida (agua, jugo natural, infusión, etc.).
+   - Cada lonchera debe incluir:
+     * Nombre de la lonchera (creativo y diferente en cada una).
+     * Ingredientes con cantidades claras.
+     * Explicación de por qué es adecuada para su edad y actividad.
+     * Alternativas si hay alergias o preferencias.
+4. Devuelve la respuesta en formato JSON ESTRICTO con esta estructura:
+
+{
+  "imc": {
+    "valor": <número>,
+    "categoria": "<texto>",
+    "explicacion": "<texto>"
   },
-  { ... },
-  { ... }
-]
-    `;
+  "loncheras": [
+    {
+      "nombre": "<texto>",
+      "ingredientes": ["<texto>", "<texto>"],
+      "explicacion": "<texto>",
+      "alternativas": "<texto>"
+    }
+  ]
+}
+`;
 
+    // Llamada a Gemini
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
     };
 
     const response = await fetch(`${GEMINI_URL}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      const text = await response.text();
+      const errorText = await response.text();
       return res.status(500).json({
-        error: 'Error desde Gemini',
-        details: text,
+        error: "Error desde la API de Gemini",
+        details: errorText,
       });
     }
 
     const json = await response.json();
 
-    // Extraer texto crudo
-    const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    console.log('🔎 Respuesta cruda de Gemini:', rawText);
+    // Intentar extraer el texto
+    const candidates = json?.candidates || [];
+    const content = candidates[0]?.content?.parts?.[0]?.text;
 
-    // Intentar detectar JSON dentro del texto
-    let lunches = [];
-    try {
-      const match = rawText.match(/\[[\s\S]*\]/); // busca bloque entre corchetes
-      if (match) {
-        lunches = JSON.parse(match[0]);
-      } else {
-        throw new Error('No se encontró JSON en la respuesta');
-      }
-    } catch (e) {
-      return res.status(500).json({
-        error: 'Gemini no devolvió JSON válido',
-        raw: rawText,
-      });
+    if (!content) {
+      return res
+        .status(500)
+        .json({ error: "Gemini no devolvió contenido válido" });
     }
 
-    res.json({ imc: imcData, grado, lunches });
+          // Parseamos el JSON que devuelve Gemini
+          let parsed;
+          try {
+            // Limpiar la respuesta para eliminar bloques de código y texto extra
+            const cleanContent = content
+              .replace(/```json/gi, "")
+              .replace(/```/g, "")
+              .replace(/^[^{]+/, "") // elimina texto antes del primer {
+              .replace(/[^}]+$/, "") // elimina texto después del último }
+              .trim();
+
+            parsed = JSON.parse(cleanContent);
+          } catch (e) {
+            console.error("Respuesta cruda de Gemini:", content);
+            return res.status(500).json({
+              error: "Gemini no devolvió JSON válido",
+              raw: content
+            });
+          }
+
+    // Devolvemos IMC calculado en backend + propuestas de Gemini
+    res.json({
+      imc: imcData,
+      loncheras: parsed.loncheras || [],
+    });
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error en el servidor:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// === Arrancar servidor ===
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✅ Servidor iniciado en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor iniciado en http://localhost:${PORT}`);
 });

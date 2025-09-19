@@ -1,196 +1,284 @@
-/* Variables Perú */
-body.peru {
-  --color-primary: #d32f2f;
-  --color-primary-dark: #b71c1c;
-  --color-text: #333;
-  --color-bg: #fdfdfd;
+/* -------------------------
+   STYLE.CSS - Tema profesional
+   Mantiene estilo rojo (Peru) y soporte Chile
+   ------------------------- */
+
+/* Temas por pais (clases en <body>) */
+body.peru-theme { --primary: #e63946; --primary-dark: #b71c1c; --accent: #fff; --bg: #f4f6f8; --card: #ffffff; --text:#253237; }
+body.chile-theme { --primary: #0033a0; --primary-dark: #001f5b; --accent: #fff; --bg: #f4f6f8; --card: #ffffff; --text:#222831; }
+
+/* Reset y base */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  padding:18px;
 }
 
-/* Variables Chile */
-body.chile {
-  --color-primary: #0033a0;
-  --color-primary-dark: #001f5b;
-  --color-text: #222;
-  --color-bg: #ffffff;
-}
-
-/* Reset */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: var(--color-bg);
-  color: var(--color-text);
-  line-height: 1.5;
-  padding-bottom: 2rem;
-  transition: background 0.3s ease, color 0.3s ease;
+/* Contenedor centrado */
+.container {
+  max-width:900px;
+  margin:0 auto;
+  min-height:100%;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
 }
 
 /* Header */
-.header {
+header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+header h1{
+  font-size:1.4rem;
+  color:var(--primary);
+  font-weight:700;
+  letter-spacing:0.2px;
+}
+
+/* Country switch (estilo boton) */
+.country-switch{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.country-switch select{
+  appearance:none;
+  -webkit-appearance:none;
+  padding:8px 12px;
+  border-radius:10px;
+  border:2px solid var(--primary);
+  background:#fff;
+  color:var(--primary);
+  font-weight:700;
+  cursor:pointer;
+}
+.country-switch select:focus{ outline:none; box-shadow:0 4px 14px rgba(0,0,0,0.06) }
+
+/* Form card */
+.form-section{
+  background:var(--card);
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 6px 20px rgba(37,50,55,0.05);
+  border:1px solid rgba(0,0,0,0.03);
+}
+
+/* Form grid */
+form{
+  display:grid;
+  gap:12px;
+  grid-template-columns: 1fr 1fr;
+}
+form .full{ grid-column: 1 / -1 } /* campos completos */
+
+/* Labels / inputs */
+label{ display:block; font-weight:600; font-size:0.92rem; margin-bottom:6px; color:#44515a }
+input[type="text"], input[type="number"], select, textarea{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid #d7dde3;
+  background:#fff;
+  font-size:0.95rem;
+  color:var(--text);
+}
+input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--primary); box-shadow:0 6px 16px rgba(0,0,0,0.04); }
+
+/* Radio genero estilizado */
+.radio-group{ display:flex; gap:10px; align-items:center; }
+.radio-group input[type="radio"]{ display:none; }
+.radio-label{
+  display:inline-block;
+  padding:8px 14px;
+  border-radius:10px;
+  border:2px solid var(--primary);
+  color:var(--primary);
+  background: #fff;
+  font-weight:700;
+  cursor:pointer;
+  transition: all 180ms ease;
+}
+.radio-label:hover{ transform: translateY(-2px) }
+.radio-group input[type="radio"]:checked + .radio-label{
+  background:var(--primary);
+  color:var(--accent);
+  border-color:var(--primary-dark);
+  box-shadow:0 6px 18px rgba(0,0,0,0.08);
+}
+
+/* Boton principal */
+.btn-primary{
+  grid-column: 1 / -1;
+  padding:12px 16px;
+  background:var(--primary);
+  color:var(--accent);
+  border:none;
+  border-radius:12px;
+  font-weight:800;
+  font-size:1rem;
+  cursor:pointer;
+  box-shadow:0 8px 20px rgba(0,0,0,0.08);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.btn-primary:active{ transform: translateY(1px) }
+.btn-primary:disabled{ opacity:0.6; cursor:not-allowed; transform:none }
+
+/* Resultados - oculto por defecto */
+.hidden{ display:none !important }
+
+/* Results container */
+.results-section{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+/* IMC box: aparece solo cuando results-section visible y se activa por JS */
+.imc-header{
+  display:flex;
+  gap:14px;
+  align-items:center;
+  background:var(--card);
+  padding:12px;
+  border-radius:12px;
+  border-left:6px solid var(--primary);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+
+/* CIRCULO con valor IMC */
+#imcValue{
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  color:var(--accent);
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  font-size:1.05rem;
+  box-shadow:0 8px 18px rgba(0,0,0,0.12);
+}
+
+/* IMC texto */
+.imc-texts{ display:flex; flex-direction:column; gap:4px }
+.imc-texts h3{ margin:0; font-size:1rem; color:var(--primary); font-weight:800 }
+.imc-texts p{ margin:0; font-size:0.95rem; color:#4b5b66 }
+
+/* Tooltip "?" refinado (click / hover) */
+.imc-tooltip {
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--card);
+  border:2px solid var(--primary);
+  color:var(--primary);
+  font-weight:800;
+  cursor:pointer;
+  position:relative;
+}
+.imc-tooltip .tooltip-text{
+  position:absolute;
+  bottom:120%;
+  left:50%;
+  transform:translateX(-50%);
+  background: rgba(23,23,23,0.94);
+  color:#fff;
+  padding:10px 12px;
+  border-radius:10px;
+  width:280px;
+  font-size:0.92rem;
+  line-height:1.3;
+  box-shadow:0 8px 26px rgba(0,0,0,0.2);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 200ms ease;
+  z-index:90;
+}
+.imc-tooltip.open .tooltip-text,
+.imc-tooltip:hover .tooltip-text{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* Ideas grid */
+.ideas-container{
+  display:grid;
+  gap:12px;
+  grid-template-columns: 1fr 1fr;
+}
+.lunch-card{
+  background:var(--card);
+  border-radius:12px;
+  padding:12px;
+  border:1px solid rgba(0,0,0,0.03);
+  box-shadow:0 8px 20px rgba(11,18,22,0.03);
+}
+.lunch-card h3{ color:var(--primary); margin-bottom:6px; font-size:1rem; font-weight:800 }
+.lunch-card ul{ margin-left:16px; margin-bottom:8px; color:#3b4b53 }
+.lunch-card .meta{ font-size:0.9rem; color:#55606a; margin-top:6px }
+
+/* Make sure single column on small screens */
+@media (max-width:720px){
+  form{ grid-template-columns: 1fr }
+  .ideas-container{ grid-template-columns: 1fr }
+  #imcValue{ width:56px; height:56px; font-size:0.95rem }
+  .imc-tooltip{ width:32px; height:32px; font-size:0.95rem }
+  .imc-tooltip .tooltip-text{ width:88vw; max-width:320px; left:50%; transform:translateX(-50%) }
+}
+
+/* small helpers */
+.center{ display:flex; align-items:center; justify-content:center }
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.tooltip-icon {
+  background: #d32f2f;
+  color: white;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background: var(--color-primary);
-  color: white;
-  padding: 1rem;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  transition: background 0.3s ease;
+  justify-content: center;
+  font-size: 14px;
 }
 
-.title {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.country-select label {
-  margin-right: 0.5rem;
-}
-
-.country-select select {
-  padding: 0.3rem;
+.tooltip-text {
+  visibility: hidden;
+  width: 240px;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
   border-radius: 6px;
-  border: none;
-  font-size: 0.9rem;
+  padding: 8px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; /* arriba del icono */
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
-/* Container */
-.container {
-  padding: 1rem;
-  max-width: 600px;
-  margin: auto;
-}
-
-/* Cards */
-.card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-  margin-bottom: 1rem;
-  transition: border 0.3s ease;
-}
-
-.card h2 {
-  color: var(--color-primary);
-  margin-bottom: 1rem;
-}
-
-/* Highlight card */
-.highlight {
-  border-left: 6px solid var(--color-primary);
-}
-
-/* Form */
-form label {
-  display: block;
-  margin-top: 0.8rem;
-  font-weight: 500;
-}
-
-form input,
-form select,
-form textarea {
-  width: 100%;
-  padding: 0.6rem;
-  margin-top: 0.3rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
-
-/* Género toggle */
-.gender-toggle {
-  display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
-.gender-toggle input[type="radio"] {
-  display: none;
-}
-
-.gender-toggle label {
-  flex: 1;
-  text-align: center;
-  padding: 0.6rem;
-  border: 2px solid var(--color-primary);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: bold;
-  color: var(--color-primary);
-  background: white;
-}
-
-.gender-toggle input[type="radio"]:checked + label {
-  background: var(--color-primary);
-  color: white;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
-
-/* Botón */
-.btn-primary {
-  display: block;
-  width: 100%;
-  margin-top: 1rem;
-  background: var(--color-primary);
-  color: white;
-  font-size: 1rem;
-  font-weight: bold;
-  padding: 0.8rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.btn-primary:hover {
-  background: var(--color-primary-dark);
-}
-
-/* Grid of lunches */
-.grid {
-  display: grid;
-  gap: 1rem;
-}
-
-.lunch-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-}
-
-.lunch-card h3 {
-  color: var(--color-primary);
-  margin-bottom: 0.5rem;
-}
-
-.lunch-card ul {
-  padding-left: 1.2rem;
-}
-
-.hidden {
-  display: none;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .country-select {
-    margin-top: 0.5rem;
-  }
-
-  .gender-toggle {
-    flex-direction: column;
-  }
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
 }
