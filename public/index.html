@@ -6,98 +6,94 @@
   <title>Ideas de Lonchera Saludable</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="peru-theme">
-  <header>
-    <h1>Ideas de Lonchera Saludable</h1>
-    <div class="country-switch">
-      <label for="country">País:</label>
-      <select id="country">
-        <option value="Peru" selected>Perú</option>
-        <option value="Chile">Chile</option>
-      </select>
-    </div>
-  </header>
+<body>
+  <div class="container">
+    <header>
+      <h1>Ideas de Lonchera Saludable</h1>
+      <div class="pais-selector" role="tablist" aria-label="Seleccionar país">
+        <button id="peru" class="btn-pais" aria-pressed="false">🇵🇪 Perú</button>
+        <button id="chile" class="btn-pais" aria-pressed="false">🇨🇱 Chile</button>
+      </div>
+    </header>
 
-  <main>
-    <section class="form-section">
-      <form id="lunchForm">
-        <div class="form-group">
+    <main>
+      <form id="lunchForm" class="form">
+        <div class="form-row">
           <label for="name">Nombre del estudiante</label>
-          <input type="text" id="name" name="name" required />
+          <input id="name" type="text" required />
         </div>
 
-        <div class="form-group">
-          <label for="age">Edad</label>
-          <input type="number" id="age" name="age" min="6" max="17" required />
-        </div>
-
-        <div class="form-group">
-          <label>Género</label>
-          <div class="radio-group">
-            <input type="radio" id="male" name="sex" value="Masculino" required />
-            <label for="male" class="radio-label">Masculino</label>
-
-            <input type="radio" id="female" name="sex" value="Femenino" required />
-            <label for="female" class="radio-label">Femenino</label>
+        <div class="form-row small-row">
+          <div>
+            <label for="age">Edad</label>
+            <input id="age" type="number" required />
+          </div>
+          <div>
+            <label for="weight">Peso (kg)</label>
+            <input id="weight" type="number" step="0.1" required />
+          </div>
+          <div>
+            <label for="height">Estatura (cm)</label>
+            <input id="height" type="number" required />
           </div>
         </div>
 
-
-        <div class="form-group">
-          <label for="weight">Peso (kg)</label>
-          <input type="number" id="weight" name="weight" step="0.1" required />
+        <div class="form-row">
+          <label>Género</label>
+          <div class="gender-selector" id="sexGroup" role="tablist" aria-label="Seleccionar género">
+            <button type="button" class="btn-genero" data-value="Masculino">👦 Masculino</button>
+            <button type="button" class="btn-genero" data-value="Femenino">👧 Femenino</button>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="height">Estatura (cm)</label>
-          <input type="number" id="height" name="height" required />
-        </div>
-
-        <div class="form-group">
+        <div class="form-row">
           <label for="activity">Nivel de actividad física</label>
-          <select id="activity" name="activity" required>
+          <select id="activity" required>
+            <option value="">Seleccione...</option>
             <option value="Bajo">Bajo</option>
-            <option value="Moderado">Moderado</option>
+            <option value="Medio">Medio</option>
             <option value="Alto">Alto</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label for="allergies">Alergias, preferencias o restricciones</label>
-          <input
-            type="text"
-            id="allergies"
-            name="allergies"
-            placeholder="Ejemplo: alérgico a la leche, vegetariano, no le gusta el pescado"
-          />
+        <div class="form-row">
+          <label for="allergies">Alergias / preferencias</label>
+          <input id="allergies" type="text" placeholder="Ej: sin gluten, vegetariano (opcional)" />
         </div>
 
-        <button type="submit" id="generateBtn" class="btn-primary">
-          Generar ideas
-        </button>
+        <button type="submit" id="generateBtn" class="btn-generate">✨ Generar ideas</button>
       </form>
-    </section>
 
-    <section class="results-section hidden" id="resultsSection">
-      <div class="imc-header">
+      <section id="imcSection" class="hidden">
         <h2>IMC del estudiante</h2>
-        <div class="imc-info">
-          <span id="imcValue"></span>
-          <div class="tooltip">
-            <span class="tooltip-icon">?</span>
-            <span class="tooltip-text">
-              El IMC (Índice de Masa Corporal) relaciona el peso y la talla.
-              En niños ayuda a identificar si su crecimiento es adecuado,
-              si tienen bajo peso o riesgo de sobrepeso.
-            </span>
-          </div>
-        </div>
-        <p id="imcExplanation"></p>
-      </div>
+        <div id="imcResult" class="imc-result"></div>
 
-      <div id="ideasContainer" class="ideas-container"></div>
-    </section>
-  </main>
+        <div class="imc-table">
+          <table>
+            <thead>
+              <tr>
+                <th>IMC</th>
+                <th>Clasificación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-range="under"><td>Menor a 18.49</td><td>Peso bajo</td></tr>
+              <tr data-range="normal"><td>18.50 a 24.99</td><td>Peso normal</td></tr>
+              <tr data-range="over"><td>25 a 29.99</td><td>Sobrepeso</td></tr>
+              <tr data-range="ob1"><td>30 a 34.99</td><td>Obesidad leve</td></tr>
+              <tr data-range="ob2"><td>35 a 39.99</td><td>Obesidad media</td></tr>
+              <tr data-range="ob3"><td>Mayor a 40</td><td>Obesidad mórbida</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="ideasSection" class="hidden">
+        <h2>Ideas de Lonchera</h2>
+        <div id="ideasList" class="ideas-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
 
   <script src="app.js"></script>
 </body>

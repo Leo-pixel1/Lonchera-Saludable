@@ -1,11 +1,3 @@
-/**
- * server.js — Backend con Express y Gemini
- *
- * Para correr:
- *   npm install express node-fetch dotenv
- *   node server.js
- */
-
 require("dotenv").config();
 const express = require("express");
 const fetch = (...args) =>
@@ -25,18 +17,19 @@ if (!API_KEY) {
 }
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public"))); // sirve index.html, style.css, app.js
+app.use(express.static(path.join(__dirname, "public")));
 
-// Función para calcular IMC
 function calcularIMC(peso, tallaCm) {
   const tallaM = tallaCm / 100;
   const imc = +(peso / (tallaM * tallaM)).toFixed(2);
 
   let categoria = "";
-  if (imc < 14) categoria = "Bajo peso";
-  else if (imc >= 14 && imc < 19) categoria = "Normal";
-  else if (imc >= 19 && imc < 23) categoria = "Sobrepeso";
-  else categoria = "Obesidad";
+  if (imc < 18.5) categoria = "Peso Bajo";
+  else if (imc < 25) categoria = "Peso Normal";
+  else if (imc < 30) categoria = "Sobrepeso";
+  else if (imc < 35) categoria = "Obesidad Leve";
+  else if (imc < 40) categoria = "Obesidad Media";
+  else categoria = "Obesidad Mórbida";
 
   const explicacion =
     "El IMC es una medida que relaciona peso y estatura. En niños y adolescentes se interpreta considerando la edad y el crecimiento. Ayuda a detectar si el estudiante está en un rango saludable.";
@@ -44,7 +37,6 @@ function calcularIMC(peso, tallaCm) {
   return { valor: imc, categoria, explicacion };
 }
 
-// Endpoint para generar loncheras
 app.post("/api/generate-lunches", async (req, res) => {
   try {
     const { student, country } = req.body;
@@ -55,15 +47,11 @@ app.post("/api/generate-lunches", async (req, res) => {
     }
 
     const { name, age, sex, weight, height, activity, allergies } = student;
-
-    // Calculamos el IMC en el backend
     const imcData = calcularIMC(weight, height);
 
-    // Prompt detallado
-    const prompt = `
+const prompt = `
 Eres un nutricionista especializado en alimentación escolar en ${country}.
-Debes generar ideas de loncheras saludables y realistas, considerando ingredientes comunes de ${country}
-que sean fáciles de conseguir (ejemplo: papa, choclo, pan, frutas locales, etc.).
+Debes generar ideas de loncheras saludables y realistas, considerando ingredientes comunes de ${country}.
 
 Datos del estudiante:
 - Nombre: ${name}
@@ -86,11 +74,6 @@ Datos del estudiante:
 4. Devuelve la respuesta en formato JSON ESTRICTO con esta estructura:
 
 {
-  "imc": {
-    "valor": <número>,
-    "categoria": "<texto>",
-    "explicacion": "<texto>"
-  },
   "loncheras": [
     {
       "nombre": "<texto>",
@@ -102,7 +85,6 @@ Datos del estudiante:
 }
 `;
 
-    // Llamada a Gemini
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
     };
@@ -113,57 +95,35 @@ Datos del estudiante:
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(500).json({
-        error: "Error desde la API de Gemini",
-        details: errorText,
-      });
-    }
-
     const json = await response.json();
-
-    // Intentar extraer el texto
     const candidates = json?.candidates || [];
     const content = candidates[0]?.content?.parts?.[0]?.text;
 
-    if (!content) {
-      return res
-        .status(500)
-        .json({ error: "Gemini no devolvió contenido válido" });
+    let parsed;
+    try {
+      const cleanContent = content
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .replace(/^[^{]+/, "")
+        .replace(/[^}]+$/, "")
+        .trim();
+
+      parsed = JSON.parse(cleanContent);
+    } catch (e) {
+      console.error("Respuesta cruda:", content);
+      return res.status(500).json({ error: "Gemini no devolvió JSON válido" });
     }
 
-          // Parseamos el JSON que devuelve Gemini
-          let parsed;
-          try {
-            // Limpiar la respuesta para eliminar bloques de código y texto extra
-            const cleanContent = content
-              .replace(/```json/gi, "")
-              .replace(/```/g, "")
-              .replace(/^[^{]+/, "") // elimina texto antes del primer {
-              .replace(/[^}]+$/, "") // elimina texto después del último }
-              .trim();
-
-            parsed = JSON.parse(cleanContent);
-          } catch (e) {
-            console.error("Respuesta cruda de Gemini:", content);
-            return res.status(500).json({
-              error: "Gemini no devolvió JSON válido",
-              raw: content
-            });
-          }
-
-    // Devolvemos IMC calculado en backend + propuestas de Gemini
     res.json({
       imc: imcData,
       loncheras: parsed.loncheras || [],
     });
   } catch (err) {
-    console.error("❌ Error en el servidor:", err);
+    console.error("❌ Error en servidor:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor iniciado en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor en http://localhost:${PORT}`);
 });
