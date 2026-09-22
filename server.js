@@ -1,129 +1,590 @@
 require("dotenv").config();
+
 const express = require("express");
-const fetch = (...args) =>
-  import("node-fetch").then(({ default: f }) => f(...args));
 const path = require("path");
 
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 
+/* =========================================================
+   CONFIGURACIÓN DE GEMINI
+========================================================= */
+
+const GEMINI_MODEL = "gemini-3.6-flash";
+
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
 const API_KEY = process.env.GEMINI_API_KEY;
 
+/* =========================================================
+   COMPROBAR API KEY
+========================================================= */
+
 if (!API_KEY) {
-  console.error("❌ Error: GEMINI_API_KEY no está configurada en tu .env");
+  console.error(
+    "❌ Error: GEMINI_API_KEY no está configurada en tu archivo .env"
+  );
+
   process.exit(1);
 }
 
+/* =========================================================
+   MIDDLEWARE
+========================================================= */
+
 app.use(express.json());
+
 app.use(express.static(path.join(__dirname, "public")));
 
+/* =========================================================
+   FUNCIÓN PARA CALCULAR IMC
+========================================================= */
+
 function calcularIMC(peso, tallaCm) {
-  const tallaM = tallaCm / 100;
-  const imc = +(peso / (tallaM * tallaM)).toFixed(2);
+  const pesoNumero = Number(peso);
+  const tallaNumero = Number(tallaCm);
 
-  let categoria = "";
-  if (imc < 18.5) categoria = "Peso Bajo";
-  else if (imc < 25) categoria = "Peso Normal";
-  else if (imc < 30) categoria = "Sobrepeso";
-  else if (imc < 35) categoria = "Obesidad Leve";
-  else if (imc < 40) categoria = "Obesidad Media";
-  else categoria = "Obesidad Mórbida";
+  if (
+    !Number.isFinite(pesoNumero) ||
+    !Number.isFinite(tallaNumero) ||
+    pesoNumero <= 0 ||
+    tallaNumero <= 0
+  ) {
+    return {
+      valor: null,
+      categoria: "No disponible",
+      explicacion:
+        "No se pudo calcular el IMC porque el peso o la estatura no son válidos."
+    };
+  }
 
-  const explicacion =
-    "El IMC es una medida que relaciona peso y estatura. En niños y adolescentes se interpreta considerando la edad y el crecimiento. Ayuda a detectar si el estudiante está en un rango saludable.";
+  const tallaM = tallaNumero / 100;
 
-  return { valor: imc, categoria, explicacion };
+  const imc = Number(
+    (pesoNumero / (tallaM * tallaM)).toFixed(2)
+  );
+
+  /*
+    IMPORTANTE:
+    En niños y adolescentes, el IMC no debe interpretarse
+    únicamente utilizando los rangos de adultos.
+    Se necesita considerar edad y sexo mediante curvas
+    de crecimiento o percentiles.
+
+    Por eso aquí mostramos el valor calculado y dejamos
+    la interpretación contextual para Gemini.
+  */
+
+  return {
+    valor: imc,
+    categoria: "Requiere interpretación según edad y sexo",
+    explicacion:
+      "El IMC relaciona el peso con la estatura. En niños y adolescentes debe interpretarse considerando la edad, el sexo y el crecimiento."
+  };
 }
+
+/* =========================================================
+   ESQUEMA JSON PARA GEMINI
+========================================================= */
+
+const lunchSchema = {
+  type: "object",
+
+  properties: {
+    loncheras: {
+      type: "array",
+
+      minItems: 5,
+      maxItems: 5,
+
+      items: {
+        type: "object",
+
+        properties: {
+          nombre: {
+            type: "string",
+            description:
+              "Nombre creativo y diferente para la lonchera."
+          },
+
+          ingredientes: {
+            type: "array",
+
+            items: {
+              type: "string"
+            },
+
+            description:
+              "Lista de ingredientes con cantidades claras."
+          },
+
+          explicacion: {
+            type: "string",
+            description:
+              "Explicación de por qué la lonchera es adecuada para el estudiante."
+          },
+
+          alternativas: {
+            type: "string",
+            description:
+              "Alternativas para alergias o preferencias alimentarias."
+          }
+        },
+
+        required: [
+          "nombre",
+          "ingredientes",
+          "explicacion",
+          "alternativas"
+        ],
+
+        additionalProperties: false
+      }
+    }
+  },
+
+  required: ["loncheras"],
+
+  additionalProperties: false
+};
+
+/* =========================================================
+   RUTA PRINCIPAL
+   GENERAR LONCHERAS
+========================================================= */
 
 app.post("/api/generate-lunches", async (req, res) => {
   try {
+    console.log("========================================");
+    console.log("📥 Nueva solicitud de loncheras");
+    console.log("========================================");
+
     const { student, country } = req.body;
+
+    /* -----------------------------------------------------
+       VALIDAR DATOS PRINCIPALES
+    ----------------------------------------------------- */
+
     if (!student || !country) {
-      return res
-        .status(400)
-        .json({ error: "Faltan datos del estudiante o país." });
+      return res.status(400).json({
+        error: "Faltan datos del estudiante o país."
+      });
     }
 
-    const { name, age, sex, weight, height, activity, allergies } = student;
+    const {
+      name,
+      age,
+      sex,
+      weight,
+      height,
+      activity,
+      allergies
+    } = student;
+
+    /* -----------------------------------------------------
+       VALIDAR CAMPOS DEL ESTUDIANTE
+    ----------------------------------------------------- */
+
+    if (
+      !name ||
+      age === undefined ||
+      age === null ||
+      !sex ||
+      weight === undefined ||
+      weight === null ||
+      height === undefined ||
+      height === null ||
+      !activity
+    ) {
+      return res.status(400).json({
+        error:
+          "Faltan uno o más datos obligatorios del estudiante."
+      });
+    }
+
+    /* -----------------------------------------------------
+       CALCULAR IMC
+    ----------------------------------------------------- */
+
     const imcData = calcularIMC(weight, height);
 
-const prompt = `
-Eres un nutricionista especializado en alimentación escolar en ${country}.
-Debes generar ideas de loncheras saludables y realistas, considerando ingredientes comunes de ${country}.
+    console.log("👤 Estudiante:", name);
+    console.log("🌎 País:", country);
+    console.log("📊 IMC:", imcData.valor);
 
-Datos del estudiante:
-- Nombre: ${name}
-- Edad: ${age} años
-- Género: ${sex}
-- Peso: ${weight} kg
-- Estatura: ${height} cm
-- Actividad física: ${activity}
-- Alergias / preferencias: ${allergies || "Ninguna"}
+    /* =====================================================
+       PROMPT
+    ===================================================== */
 
-1. Calcula el IMC y confirma si es bajo, normal, sobrepeso u obesidad.
-2. Explica brevemente qué significa ese IMC para su edad.
-3. Genera exactamente 5 propuestas de loncheras, variadas y no repetitivas.
-   - Cada lonchera debe incluir obligatoriamente una bebida (agua, jugo natural, infusión, etc.).
-   - Cada lonchera debe incluir:
-     * Nombre de la lonchera (creativo y diferente en cada una).
-     * Ingredientes con cantidades claras.
-     * Explicación de por qué es adecuada para su edad y actividad.
-     * Alternativas si hay alergias o preferencias.
-4. Devuelve la respuesta en formato JSON ESTRICTO con esta estructura:
+    const prompt = `
+Eres un asistente especializado en alimentación escolar saludable.
 
-{
-  "loncheras": [
-    {
-      "nombre": "<texto>",
-      "ingredientes": ["<texto>", "<texto>"],
-      "explicacion": "<texto>",
-      "alternativas": "<texto>"
-    }
-  ]
-}
+Tu función es ayudar a generar ideas de loncheras escolares variadas,
+realistas y apropiadas para estudiantes.
+
+IMPORTANTE:
+- No inventes datos médicos.
+- No presentes el IMC de un niño o adolescente utilizando automáticamente
+  los rangos de IMC para adultos.
+- En niños y adolescentes, la interpretación del IMC depende de la edad,
+  el sexo y las curvas de crecimiento.
+- Puedes explicar que el valor calculado debe interpretarse considerando
+  esos factores.
+- No diagnostiques enfermedades.
+- No sustituyas la evaluación de un médico o nutricionista.
+
+PAÍS:
+${country}
+
+DATOS DEL ESTUDIANTE:
+
+Nombre:
+${name}
+
+Edad:
+${age} años
+
+Género:
+${sex}
+
+Peso:
+${weight} kg
+
+Estatura:
+${height} cm
+
+Actividad física:
+${activity}
+
+Alergias o preferencias:
+${allergies || "Ninguna"}
+
+IMC CALCULADO:
+${imcData.valor}
+
+=========================================================
+TAREA
+=========================================================
+
+Genera exactamente 5 propuestas de loncheras saludables.
+
+Las 5 propuestas deben ser:
+
+1. Diferentes entre sí.
+2. Realistas para un estudiante.
+3. Elaboradas con ingredientes que puedan encontrarse
+   normalmente en ${country}.
+4. Adecuadas considerando la edad y actividad física indicada.
+5. Variadas nutricionalmente.
+6. Fáciles de preparar.
+7. Claras y fáciles de entender.
+
+=========================================================
+CADA LONCHERA DEBE CONTENER
+=========================================================
+
+- Un nombre creativo.
+- Una bebida obligatoriamente.
+- Ingredientes con cantidades claras.
+- Una explicación de por qué puede ser adecuada para el estudiante.
+- Alternativas para alergias o preferencias.
+
+=========================================================
+BEBIDAS
+=========================================================
+
+Cada propuesta debe incluir obligatoriamente una bebida.
+
+Puede ser, por ejemplo:
+
+- Agua.
+- Leche.
+- Yogur bebible.
+- Jugo natural.
+- Infusión apropiada.
+- Otra alternativa razonable.
+
+No repitas exactamente la misma bebida en las cinco propuestas
+si existen alternativas razonables.
+
+=========================================================
+VARIEDAD
+=========================================================
+
+Evita generar cinco loncheras prácticamente iguales.
+
+Procura variar:
+
+- Frutas.
+- Cereales.
+- Fuentes de proteína.
+- Preparaciones.
+- Bebidas.
+- Ingredientes.
+- Presentación.
+
+=========================================================
+IMC
+=========================================================
+
+El valor calculado del IMC es:
+
+${imcData.valor}
+
+Si explicas el IMC:
+
+- Indica que es un valor calculado.
+- Recuerda que en niños y adolescentes debe interpretarse
+  según edad, sexo y crecimiento.
+- No diagnostiques sobrepeso u obesidad solamente con este número.
+
+=========================================================
+RESULTADO
+=========================================================
+
+Devuelve únicamente la información solicitada en el formato JSON
+definido por el esquema de respuesta.
+
+No agregues explicaciones fuera de ese formato.
 `;
 
+    /* =====================================================
+       CUERPO DE PETICIÓN A GEMINI
+    ===================================================== */
+
     const body = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
+            }
+          ]
+        }
+      ],
+
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseJsonSchema: lunchSchema
+      }
     };
 
-    const response = await fetch(`${GEMINI_URL}?key=${API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    console.log("🤖 Enviando solicitud a Gemini...");
+    console.log("🧠 Modelo:", GEMINI_MODEL);
 
-    const json = await response.json();
-    const candidates = json?.candidates || [];
-    const content = candidates[0]?.content?.parts?.[0]?.text;
+    /* =====================================================
+       LLAMADA A GEMINI
+    ===================================================== */
 
-    let parsed;
+    const response = await fetch(
+      `${GEMINI_URL}?key=${encodeURIComponent(API_KEY)}`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify(body)
+      }
+    );
+
+    /* -----------------------------------------------------
+       OBTENER RESPUESTA
+    ----------------------------------------------------- */
+
+    const responseText = await response.text();
+
+    let json;
+
     try {
-      const cleanContent = content
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .replace(/^[^{]+/, "")
-        .replace(/[^}]+$/, "")
-        .trim();
+      json = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error(
+        "❌ Gemini respondió algo que no es JSON:"
+      );
 
-      parsed = JSON.parse(cleanContent);
-    } catch (e) {
-      console.error("Respuesta cruda:", content);
-      return res.status(500).json({ error: "Gemini no devolvió JSON válido" });
+      console.error(responseText);
+
+      return res.status(500).json({
+        error:
+          "Gemini devolvió una respuesta que el servidor no pudo interpretar.",
+        details: responseText
+      });
     }
 
-    res.json({
+    /* =====================================================
+       MANEJO DE ERRORES DE LA API
+    ===================================================== */
+
+    if (!response.ok) {
+      console.error("========================================");
+      console.error("❌ ERROR DE GEMINI");
+      console.error("========================================");
+
+      console.error("Status:", response.status);
+      console.error("Respuesta:", JSON.stringify(json, null, 2));
+
+      const mensaje =
+        json?.error?.message ||
+        "Gemini rechazó la solicitud.";
+
+      return res.status(response.status).json({
+        error: mensaje
+      });
+    }
+
+    /* =====================================================
+       EXTRAER TEXTO
+    ===================================================== */
+
+    const candidates = json?.candidates || [];
+
+    const content =
+      candidates[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("")
+        .trim();
+
+    if (!content) {
+      console.error("❌ Gemini no devolvió contenido.");
+      console.error(
+        JSON.stringify(json, null, 2)
+      );
+
+      return res.status(500).json({
+        error:
+          "Gemini no devolvió contenido en la respuesta."
+      });
+    }
+
+    console.log("✅ Gemini respondió correctamente.");
+
+    /* =====================================================
+       PARSEAR JSON
+    ===================================================== */
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      console.error(
+        "❌ El contenido de Gemini no pudo convertirse en JSON."
+      );
+
+      console.error("Contenido recibido:");
+      console.error(content);
+
+      return res.status(500).json({
+        error:
+          "Gemini devolvió contenido que no pudo convertirse en JSON."
+      });
+    }
+
+    /* =====================================================
+       VALIDAR ESTRUCTURA
+    ===================================================== */
+
+    if (
+      !parsed ||
+      !Array.isArray(parsed.loncheras)
+    ) {
+      console.error(
+        "❌ La respuesta no contiene un arreglo de loncheras."
+      );
+
+      console.error(
+        JSON.stringify(parsed, null, 2)
+      );
+
+      return res.status(500).json({
+        error:
+          "La respuesta de Gemini no tiene la estructura esperada."
+      });
+    }
+
+    /* =====================================================
+       ASEGURAR EXACTAMENTE 5
+    ===================================================== */
+
+    const loncheras = parsed.loncheras.slice(0, 5);
+
+    if (loncheras.length < 5) {
+      console.error(
+        "❌ Gemini devolvió menos de 5 loncheras."
+      );
+
+      return res.status(500).json({
+        error:
+          "Gemini no generó las 5 loncheras solicitadas."
+      });
+    }
+
+    /* =====================================================
+       RESPUESTA FINAL AL FRONTEND
+    ===================================================== */
+
+    console.log(
+      `🥪 ${loncheras.length} loncheras generadas correctamente.`
+    );
+
+    console.log("========================================");
+
+    return res.json({
       imc: imcData,
-      loncheras: parsed.loncheras || [],
+      loncheras: loncheras
     });
+
   } catch (err) {
-    console.error("❌ Error en servidor:", err);
-    res.status(500).json({ error: err.message });
+    /* =====================================================
+       ERROR GENERAL DEL SERVIDOR
+    ===================================================== */
+
+    console.error("========================================");
+    console.error("❌ ERROR GENERAL DEL SERVIDOR");
+    console.error("========================================");
+
+    console.error(err);
+
+    return res.status(500).json({
+      error:
+        err?.message ||
+        "Ocurrió un error inesperado en el servidor."
+    });
   }
 });
 
+/* =========================================================
+   RUTA DE PRUEBA
+========================================================= */
+
+app.get("/api/status", (req, res) => {
+  res.json({
+    ok: true,
+    server: "Lonchera Saludable",
+    gemini: GEMINI_MODEL,
+    message: "Servidor funcionando correctamente."
+  });
+});
+
+/* =========================================================
+   INICIAR SERVIDOR
+========================================================= */
+
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor en http://localhost:${PORT}`);
+  console.log("");
+  console.log("========================================");
+  console.log("🚀 SERVIDOR INICIADO");
+  console.log("========================================");
+  console.log(`📡 Puerto: ${PORT}`);
+  console.log(`🧠 Gemini: ${GEMINI_MODEL}`);
+  console.log("🔑 GEMINI_API_KEY: configurada");
+  console.log("========================================");
+  console.log("");
 });
