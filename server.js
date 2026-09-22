@@ -14,7 +14,8 @@ const PORT = process.env.PORT || 3000;
    CONFIGURACIÓN DE GEMINI
 ========================================================= */
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+// Modelo rápido y ligero para reducir consumo y latencia.
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 const GEMINI_URL =
   `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -72,12 +73,10 @@ function calcularIMC(peso, tallaCm) {
   /*
     IMPORTANTE:
     En niños y adolescentes, el IMC no debe interpretarse
-    únicamente utilizando los rangos de adultos.
-    Se necesita considerar edad y sexo mediante curvas
-    de crecimiento o percentiles.
+    utilizando automáticamente los rangos de adultos.
 
-    Por eso aquí mostramos el valor calculado y dejamos
-    la interpretación contextual para Gemini.
+    La interpretación requiere considerar edad, sexo
+    y crecimiento.
   */
 
   return {
@@ -126,7 +125,7 @@ const lunchSchema = {
           explicacion: {
             type: "string",
             description:
-              "Explicación de por qué la lonchera es adecuada para el estudiante."
+              "Explicación de por qué la lonchera puede ser adecuada para el estudiante."
           },
 
           alternativas: {
@@ -228,6 +227,7 @@ Tu función es ayudar a generar ideas de loncheras escolares variadas,
 realistas y apropiadas para estudiantes.
 
 IMPORTANTE:
+
 - No inventes datos médicos.
 - No presentes el IMC de un niño o adolescente utilizando automáticamente
   los rangos de IMC para adultos.
@@ -237,6 +237,8 @@ IMPORTANTE:
   esos factores.
 - No diagnostiques enfermedades.
 - No sustituyas la evaluación de un médico o nutricionista.
+- Evita recomendaciones extremas o dietas restrictivas.
+- Prioriza alimentos variados y cantidades razonables.
 
 PAÍS:
 ${country}
@@ -283,6 +285,7 @@ Las 5 propuestas deben ser:
 5. Variadas nutricionalmente.
 6. Fáciles de preparar.
 7. Claras y fáciles de entender.
+8. Apropiadas para llevar como lonchera escolar.
 
 =========================================================
 CADA LONCHERA DEBE CONTENER
@@ -300,17 +303,17 @@ BEBIDAS
 
 Cada propuesta debe incluir obligatoriamente una bebida.
 
-Puede ser, por ejemplo:
+Puedes utilizar alternativas como:
 
 - Agua.
 - Leche.
 - Yogur bebible.
 - Jugo natural.
 - Infusión apropiada.
-- Otra alternativa razonable.
+- Otra bebida razonable.
 
-No repitas exactamente la misma bebida en las cinco propuestas
-si existen alternativas razonables.
+Procura no repetir exactamente la misma bebida
+en las cinco propuestas si existen alternativas razonables.
 
 =========================================================
 VARIEDAD
@@ -370,7 +373,13 @@ No agregues explicaciones fuera de ese formato.
 
       generationConfig: {
         responseMimeType: "application/json",
-        responseJsonSchema: lunchSchema
+        responseJsonSchema: lunchSchema,
+
+        // Mantiene las respuestas relativamente controladas.
+        temperature: 0.7,
+
+        // Evita generar respuestas excesivamente largas.
+        maxOutputTokens: 3000
       }
     };
 
@@ -413,8 +422,7 @@ No agregues explicaciones fuera de ese formato.
 
       return res.status(500).json({
         error:
-          "Gemini devolvió una respuesta que el servidor no pudo interpretar.",
-        details: responseText
+          "Gemini devolvió una respuesta que el servidor no pudo interpretar."
       });
     }
 
@@ -428,7 +436,10 @@ No agregues explicaciones fuera de ese formato.
       console.error("========================================");
 
       console.error("Status:", response.status);
-      console.error("Respuesta:", JSON.stringify(json, null, 2));
+      console.error(
+        "Respuesta:",
+        JSON.stringify(json, null, 2)
+      );
 
       const mensaje =
         json?.error?.message ||
@@ -453,6 +464,7 @@ No agregues explicaciones fuera de ese formato.
 
     if (!content) {
       console.error("❌ Gemini no devolvió contenido.");
+
       console.error(
         JSON.stringify(json, null, 2)
       );
